@@ -1,4 +1,3 @@
-from evdev import InputDevice
 from select import select
 from enum import Enum
 
@@ -43,9 +42,9 @@ class Map(Enum):
 	
 
 PS3_CONTROLLER_MAP = {
-	1 : {"name":"AXIS_L_Y", "map":Map.BUTTON_0, "type":1},
-	2 : {"name":"AXIS_R_Y", "map":Map.BUTTON_0, "type":1},
-	5 : {"name":"AXIS_R_Y", "map":Map.BUTTON_0, "type":1},
+	#1 : {"name":"AXIS_L_Y", "map":Map.BUTTON_0, "type":1},
+	#2 : {"name":"AXIS_R_Y", "map":Map.BUTTON_0, "type":1},
+	#5 : {"name":"AXIS_R_Y", "map":Map.BUTTON_0, "type":1},
 	#48 : {"name":"BUTTON_L2_PRESSURE", "map":Map.BUTTON_0
 	#49 : {"name":"BUTTON_L2_PRESSURE", "map":Map.BUTTON_0
 	#50 : {"name":"BUTTON_L1_PRESSURE", "map":Map.BUTTON_0
@@ -56,22 +55,22 @@ PS3_CONTROLLER_MAP = {
 	#54 : {"name":"BUTTON_X_PRESSURE", "map":Map.BUTTON_0
 
 	#4 : {"name":"CHANGE_STATE", "map":Map.BUTTON_0,
-	288 : {"name":"BUTTON_SELECT", "map":Map.BUTTON_SELECT, "type":0},
-	289 : {"name":"BUTTON_L3", "map":Map.BUTTON_L3, "type":0},
-	290 : {"name":"BUTTON_R3", "map":Map.BUTTON_R3, "type":0},
-	291 : {"name":"BUTTON_START", "map":Map.BUTTON_START, "type":0},
-	292 : {"name":"BUTTON_POV_UP", "map":Map.POV_UP, "type":0},
-	293 : {"name":"BUTTON_POV_RIGHT", "map":Map.POV_RIGHT, "type":0},
-	294 : {"name":"BUTTON_POV_DOWN", "map":Map.POV_DOWN, "type":0},
-	295 : {"name":"BUTTON_POV_LEFT", "map":Map.POV_LEFT, "type":0},
-	296 : {"name":"BUTTON_L2", "map":Map.BUTTON_L2, "type":0},
-	297 : {"name":"BUTTON_R2", "map":Map.BUTTON_R2, "type":0},
-	298 : {"name":"BUTTON_L1", "map":Map.BUTTON_L1, "type":0},
-	299 : {"name":"BUTTON_R1", "map":Map.BUTTON_R1, "type":0},
-	300 : {"name":"BUTTON_TRIANGLE", "map":Map.BUTTON_3, "type":0},
-	301 : {"name":"BUTTON_CIRCLE", "map":Map.BUTTON_1, "type":0},
-	302 : {"name":"BUTTON_X", "map":Map.BUTTON_0, "type":0},
-	303 : {"name":"BUTTON_SQUARE", "map":Map.BUTTON_2, "type":0},
+	58 : {"name":"BUTTON_SELECT", "map":Map.BUTTON_SELECT, "type":0},
+	61 : {"name":"BUTTON_L3", "map":Map.BUTTON_L3, "type":0},
+	62 : {"name":"BUTTON_R3", "map":Map.BUTTON_R3, "type":0},
+	59 : {"name":"BUTTON_START", "map":Map.BUTTON_START, "type":0},
+	32 : {"name":"BUTTON_POV_UP", "map":Map.POV_UP, "type":0},
+	35 : {"name":"BUTTON_POV_RIGHT", "map":Map.POV_RIGHT, "type":0},
+	33 : {"name":"BUTTON_POV_DOWN", "map":Map.POV_DOWN, "type":0},
+	34 : {"name":"BUTTON_POV_LEFT", "map":Map.POV_LEFT, "type":0},
+	56 : {"name":"BUTTON_L2", "map":Map.BUTTON_L2, "type":0},
+	57 : {"name":"BUTTON_R2", "map":Map.BUTTON_R2, "type":0},
+	54 : {"name":"BUTTON_L1", "map":Map.BUTTON_L1, "type":0},
+	55 : {"name":"BUTTON_R1", "map":Map.BUTTON_R1, "type":0},
+	51 : {"name":"BUTTON_TRIANGLE", "map":Map.BUTTON_3, "type":0},
+	49 : {"name":"BUTTON_CIRCLE", "map":Map.BUTTON_1, "type":0},
+	48 : {"name":"BUTTON_X", "map":Map.BUTTON_0, "type":0},
+	52 : {"name":"BUTTON_SQUARE", "map":Map.BUTTON_2, "type":0},
 }
 
 class ControllerInterface:
@@ -127,20 +126,31 @@ class ControllerInterface:
 		path_event = r"/dev/input/by-id/usb-Sony_PLAYSTATION_R_3_Controller-event-joystick"
 		joy = None
 		
-		while self.alive:
 		
-			while joy is None:
+		byte_buff = []
+		joy = []
+		inFile = None
+		while self.alive:
+			while inFile is None:
 				try:
-					joy = InputDevice(path_event)
-					print(joy)
-				except FileNotFoundError:
-					time.sleep(2)
-			
-			ev = None
-			r, w, x = select([joy],[],[])
+					inFile = open(path_event, "rb")
+					print(path_event)
+				except:
+					inFile = None
+					time.sleep(0.5)
+					
 			
 			try:
-				for event in joy.read():
+				joy = []
+				line = inFile.readline()
+				if line:
+					for b in line:
+						byte_buff.append(b)
+						if len(byte_buff) >= 16:
+							joy.append(InputEvent(byte_buff))
+							byte_buff = []
+			
+				for event in joy:
 					if event.code in map:
 						m = map[event.code]
 						if m["type"] == 0:
@@ -160,7 +170,7 @@ class ControllerInterface:
 									index
 								))
 			except OSError:
-				joy = None
+				inFile = None
 				print("Controller %s disconnected" % index)
 							
 	#		if len(self.events[index]) > 0:
@@ -172,6 +182,17 @@ class ControllerInterface:
 	#				elif event.state == ControllerEvent.UP:
 	#					if callable(cb[1]):
 	#						cb[1](event)
+	
+class InputEvent:
+	def __init__(self, buff):
+		self.iterator = buff[0]
+		self.code = buff[10]
+		self.value = buff[12]
+		
+		self._raw = buff
+		
+	def __str__(self):
+		return "iterator %s, value: %s, code: %s" % (self.iterator, self.value,self.code)
 							
 class ControllerEvent:
 	UP = 0

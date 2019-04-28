@@ -103,6 +103,7 @@ class Terrestrial(tk.Tk):
 		elif event.code == Map.POV_UP:
 			self.table.set_cursor( max(self.table.cursor-1, 0) )
 		elif event.code == Map.BUTTON_0:
+			print("PLAY")
 			self.play()
 		elif event.code == Map.BUTTON_1: 
 			self.stop()
